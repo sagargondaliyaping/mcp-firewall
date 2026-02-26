@@ -50,8 +50,8 @@ class PipelineRunner:
             self._rate_limiter,
             self._injection,
             self._egress,
-            self._threat_feed,
             self._policy,
+            self._threat_feed,
             self._chain,
         ]
 
