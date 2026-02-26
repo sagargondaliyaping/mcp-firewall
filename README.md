@@ -227,6 +227,8 @@ mcp-firewall wrap -- python my_server.py
 - [Getting Started](docs/getting-started.md)
 - [Policy Reference](docs/policies.md)
 - [Compliance Guide](docs/compliance.md)
+- [Security Scorecard](docs/security/security-scorecard.md)
+- [Release Integrity](docs/security/release-integrity.md)
 - [Threat Feed](docs/threat-feed.md)
 - [Architecture](ARCHITECTURE.md)
 

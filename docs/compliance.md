@@ -2,6 +2,12 @@
 
 mcp-firewall generates audit evidence for regulatory frameworks.
 
+## Standards and Scorecard
+
+- Standards mapping: `docs/security/standards-mapping.csv`
+- Control catalog: `docs/security/control-catalog.md`
+- Security scorecard: `docs/security/security-scorecard.md`
+
 ## DORA (EU Digital Operational Resilience Act)
 
 ```bash
@@ -54,6 +60,8 @@ Each log entry contains:
 - SHA-256 hash of previous entry (chain)
 - Ed25519 signature (when enabled)
 - Timestamp, agent, tool, decision, severity, latency
+- Correlation ID for request tracing
+- Control metadata (`control_id`, `rule_name`) when available
 
 ## SIEM Integration
 

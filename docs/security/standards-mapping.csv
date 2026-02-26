@@ -1,8 +1,10 @@
 control_id,standard,requirement,component,status,notes
-MCP-AUTH-001,MCP Authorization + RFC9700,Validate token audience issuer expiry,mcp_firewall/proxy/http.py,planned,Required for HTTP transport support
+MCP-AUTH-001,MCP Authorization + RFC9700,Validate token audience issuer expiry,mcp_firewall/proxy/http.py,implemented,HTTP bearer token validation and audience checks enabled
 MCP-INGRESS-001,OWASP GenAI,Detect and block prompt injection,mcp_firewall/pipeline/inbound/injection.py,implemented,Sensitivity configurable
 MCP-EGRESS-001,OWASP GenAI,Prevent SSRF and metadata access,mcp_firewall/pipeline/inbound/egress.py,implemented,Blocks private and link-local targets
 MCP-POLICY-001,NIST AI RMF,Policy evaluation before execution,mcp_firewall/pipeline/inbound/policy.py,implemented,YAML first-match semantics
-MCP-THREAT-001,NIST CSF 2.0,Runtime threat feed enforcement,mcp_firewall/pipeline/inbound/threat_feed.py,planned,Will enforce bundled rules
-MCP-ALERT-001,NIST CSF 2.0,Alert on high severity violations,mcp_firewall/alerts/engine.py,planned,Needs pipeline integration
+MCP-THREAT-001,NIST CSF 2.0,Runtime threat feed enforcement,mcp_firewall/pipeline/inbound/threat_feed.py,implemented,Bundled and optional custom rule directories enforced in pipeline
+MCP-ALERT-001,NIST CSF 2.0,Alert on high severity violations,mcp_firewall/alerts/engine.py,implemented,Pipeline emits deny/redact findings to alert engine
 MCP-AUDIT-001,NIST SSDF,Tamper-evident audit evidence,mcp_firewall/audit/logger.py,implemented,Hash chain with optional signatures
+MCP-EXFIL-001,OWASP GenAI,Detect and block outbound exfiltration patterns,mcp_firewall/pipeline/outbound/exfil.py,implemented,Blocks suspicious long encoded and DNS-tunnel-like content
+MCP-CONTENT-001,NIST AI RMF,Apply custom outbound content policy rules,mcp_firewall/pipeline/outbound/content.py,implemented,Configurable regex-based blocking
