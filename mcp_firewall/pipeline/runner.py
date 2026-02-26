@@ -23,6 +23,8 @@ from .inbound.human_approval import HumanApproval
 from .inbound.threat_feed import ThreatFeedStage
 from .outbound.secrets import SecretScanner
 from .outbound.pii import PIIDetector
+from .outbound.exfil import ExfilDetector
+from .outbound.content import ContentPolicy
 
 
 class PipelineRunner:
@@ -57,6 +59,8 @@ class PipelineRunner:
         self.outbound_stages = [
             SecretScanner(),
             PIIDetector(),
+            ExfilDetector(),
+            ContentPolicy(),
         ]
 
     def evaluate_inbound(self, request: ToolCallRequest) -> PipelineDecision | None:
