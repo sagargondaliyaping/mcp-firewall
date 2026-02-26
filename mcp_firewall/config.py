@@ -46,15 +46,21 @@ def load_config(path: str | Path | None = None) -> GatewayConfig:
             mapped["injection"] = sec["injectionDetection"]
         if "egressControl" in sec:
             mapped["egress"] = sec["egressControl"]
+        if "threatFeed" in sec:
+            mapped["threat_feed"] = sec["threatFeed"]
 
     if "injection" in raw:
         mapped["injection"] = raw["injection"]
     if "egress" in raw:
         mapped["egress"] = raw["egress"]
+    if "threatFeed" in raw or "threat_feed" in raw:
+        mapped["threat_feed"] = raw.get("threatFeed", raw.get("threat_feed", {}))
     if "secrets" in raw:
         mapped["secrets"] = raw["secrets"]
     if "pii" in raw:
         mapped["pii"] = raw["pii"]
+    if "alerts" in raw:
+        mapped["alerts"] = raw["alerts"]
 
     if "responseScanning" in raw:
         rs = raw["responseScanning"]
@@ -89,6 +95,8 @@ security:
     enabled: true
     blockPrivateIPs: true
     blockCloudMetadata: true
+  threatFeed:
+    enabled: true
 
 responseScanning:
   detectSecrets: true
@@ -144,4 +152,8 @@ rules:
 audit:
   enabled: true
   path: mcp-firewall.audit.jsonl
+
+alerts:
+  enabled: false
+  min_severity: high
 """

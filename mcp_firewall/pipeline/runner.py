@@ -12,6 +12,7 @@ from ..models import (
     ToolCallResponse,
 )
 from ..audit.logger import AuditLogger
+from ..alerts.engine import AlertEngine
 from .inbound.kill_switch import KillSwitch
 from .inbound.injection import InjectionDetector
 from .inbound.egress import EgressControl
@@ -19,6 +20,7 @@ from .inbound.rate_limiter import RateLimiter
 from .inbound.policy import PolicyEngine
 from .inbound.chain_detector import ChainDetector
 from .inbound.human_approval import HumanApproval
+from .inbound.threat_feed import ThreatFeedStage
 from .outbound.secrets import SecretScanner
 from .outbound.pii import PIIDetector
 
@@ -29,12 +31,14 @@ class PipelineRunner:
     def __init__(self, config: GatewayConfig, auto_approve: bool = False) -> None:
         self.config = config
         self.audit = AuditLogger(config)
+        self.alerts = AlertEngine(min_severity=config.alerts.min_severity) if config.alerts.enabled else None
 
         # Inbound stages (order matters!)
         self._kill_switch = KillSwitch()
         self._rate_limiter = RateLimiter()
         self._injection = InjectionDetector()
         self._egress = EgressControl()
+        self._threat_feed = ThreatFeedStage()
         self._policy = PolicyEngine()
         self._chain = ChainDetector()
         self._approval = HumanApproval(auto_approve=auto_approve)
@@ -44,6 +48,7 @@ class PipelineRunner:
             self._rate_limiter,
             self._injection,
             self._egress,
+            self._threat_feed,
             self._policy,
             self._chain,
         ]
@@ -66,6 +71,8 @@ class PipelineRunner:
             if decision.action == Action.DENY:
                 latency = (time.time() - start) * 1000
                 self.audit.log(request, decision, latency)
+                if self.alerts:
+                    self.alerts.process(request, decision)
                 return decision
 
             if decision.action == Action.PROMPT:
@@ -73,6 +80,8 @@ class PipelineRunner:
                 approval = self._approval.evaluate(request, self.config)
                 latency = (time.time() - start) * 1000
                 self.audit.log(request, approval, latency)
+                if self.alerts:
+                    self.alerts.process(request, approval)
                 if approval.action == Action.DENY:
                     return approval
                 # Approved, continue pipeline
@@ -99,6 +108,8 @@ class PipelineRunner:
             response, decision = stage.scan(response, self.config)
             if decision:
                 decisions.append(decision)
+                if self.alerts:
+                    self.alerts.process(request, decision)
                 if decision.action == Action.DENY:
                     break
 
@@ -107,3 +118,4 @@ class PipelineRunner:
     def reload_config(self, config: GatewayConfig) -> None:
         """Hot-reload configuration."""
         self.config = config
+        self.alerts = AlertEngine(min_severity=config.alerts.min_severity) if config.alerts.enabled else None

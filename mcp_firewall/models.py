@@ -54,6 +54,7 @@ class PipelineStage(str, Enum):
     RATE_LIMITER = "rate_limiter"
     INJECTION = "injection"
     EGRESS = "egress"
+    THREAT_FEED = "threat_feed"
     POLICY = "policy"
     CHAIN_DETECTOR = "chain_detector"
     HUMAN_APPROVAL = "human_approval"
@@ -117,8 +118,10 @@ class GatewayConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     injection: InjectionConfig = Field(default_factory=lambda: InjectionConfig())
     egress: EgressConfig = Field(default_factory=lambda: EgressConfig())
+    threat_feed: ThreatFeedConfig = Field(default_factory=lambda: ThreatFeedConfig())
     secrets: SecretScanConfig = Field(default_factory=lambda: SecretScanConfig())
     pii: PIIConfig = Field(default_factory=lambda: PIIConfig())
+    alerts: AlertsConfig = Field(default_factory=lambda: AlertsConfig())
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     rules: list[RuleConfig] = Field(default_factory=list)
     audit: AuditConfig = Field(default_factory=lambda: AuditConfig())
@@ -154,6 +157,13 @@ class EgressConfig(BaseModel):
     block_cloud_metadata: bool = True
 
 
+class ThreatFeedConfig(BaseModel):
+    """Threat feed configuration."""
+
+    enabled: bool = True
+    rules_dir: str | None = None
+
+
 class SecretScanConfig(BaseModel):
     """Secret scanning configuration."""
 
@@ -166,6 +176,13 @@ class PIIConfig(BaseModel):
 
     enabled: bool = False  # off by default
     action: Action = Action.REDACT
+
+
+class AlertsConfig(BaseModel):
+    """Alerting configuration."""
+
+    enabled: bool = False
+    min_severity: Severity = Severity.HIGH
 
 
 class AgentConfig(BaseModel):
