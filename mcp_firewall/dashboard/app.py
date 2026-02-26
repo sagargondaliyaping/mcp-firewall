@@ -105,6 +105,7 @@ async def api_stats():
 @app.get("/api/events")
 async def api_events(
     limit: int = 50,
+    server_id: str | None = None,
     action: str | None = None,
     severity: str | None = None,
     agent: str | None = None,
@@ -116,6 +117,8 @@ async def api_events(
     filtered = state.events
     if action is not None:
         filtered = [e for e in filtered if e.get("action") == action]
+    if server_id is not None:
+        filtered = [e for e in filtered if e.get("server_id") == server_id]
     if severity is not None:
         filtered = [e for e in filtered if e.get("severity") == severity]
     if agent is not None:
@@ -188,6 +191,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .event .time { color: var(--dim); white-space: nowrap; font-family: monospace; min-width: 80px; }
   .event .sev { min-width: 20px; text-align: center; }
   .event .tool { color: var(--blue); min-width: 120px; font-family: monospace; }
+  .event .server { color: var(--dim); min-width: 120px; font-family: monospace; }
   .event .agent { color: var(--dim); min-width: 100px; }
   .event .hostname { color: var(--dim); min-width: 140px; font-family: monospace; }
   .event .findings { color: var(--yellow); min-width: 180px; }
@@ -217,7 +221,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
 <div class="feed">
   <h2>Live Event Feed</h2>
-  <div style="padding: 0 12px 6px; color: var(--dim); font-size: 12px;">Hostname | Findings</div>
+  <div style="padding: 0 12px 6px; color: var(--dim); font-size: 12px;">Server | Hostname | Findings</div>
   <div class="event-list" id="events"></div>
 </div>
 
@@ -247,6 +251,7 @@ function addEvent(evt) {
     <span class="time">${formatTime(evt.timestamp || Date.now()/1000)}</span>
     <span class="sev">${sevEmoji[evt.severity] || '⚪'}</span>
     <span class="tool">${evt.tool || 'n/a'}</span>
+    <span class="server">${evt.server_id || 'default'}</span>
     <span class="agent">${evt.agent || 'unknown'}</span>
     <span class="hostname">${evt.hostname || 'n/a'}</span>
     <span class="${actionClass}">${(evt.action || 'allow').toUpperCase()}</span>

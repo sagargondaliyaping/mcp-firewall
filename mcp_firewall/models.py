@@ -125,6 +125,7 @@ class DashboardEvent(BaseModel):
     """Normalized dashboard event payload."""
 
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    server_id: str = "default"
     hostname: str
     target_hostname: str = ""
     correlation_id: str

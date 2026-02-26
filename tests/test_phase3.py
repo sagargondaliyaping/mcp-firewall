@@ -187,6 +187,39 @@ class TestDashboardAPI:
         assert len(payload["events"]) == 1
         assert payload["events"][0]["tool"] == "fetch"
 
+    def test_events_endpoint_supports_server_id_filter(self, monkeypatch):
+        from mcp_firewall.dashboard import app as dashboard_app_module
+
+        test_state = DashboardState()
+        test_state.add_event(
+            {
+                "action": "deny",
+                "severity": "high",
+                "agent": "claude",
+                "tool": "fetch",
+                "server_id": "filesystem",
+                "timestamp": 1730000000,
+            }
+        )
+        test_state.add_event(
+            {
+                "action": "deny",
+                "severity": "high",
+                "agent": "claude",
+                "tool": "fetch",
+                "server_id": "falcon-mcp",
+                "timestamp": 1730000100,
+            }
+        )
+        monkeypatch.setattr(dashboard_app_module, "state", test_state)
+
+        client = TestClient(dashboard_app_module.app)
+        resp = client.get("/api/events?limit=50&server_id=filesystem")
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["total_count"] == 1
+        assert payload["events"][0]["server_id"] == "filesystem"
+
 
 def test_dashboard_event_schema_includes_hostname_and_findings():
     from mcp_firewall.dashboard.events import build_dashboard_event
@@ -200,6 +233,18 @@ def test_dashboard_event_schema_includes_hostname_and_findings():
     )
     assert "hostname" in evt
     assert "findings" in evt
+
+
+def test_dashboard_event_schema_includes_server_id():
+    from mcp_firewall.dashboard.events import build_dashboard_event
+
+    evt = build_dashboard_event(
+        action="allow",
+        tool="read_file",
+        severity="info",
+        server_id="filesystem",
+    )
+    assert evt["server_id"] == "filesystem"
 
 
 def test_dashboard_html_contains_finding_and_hostname_columns():

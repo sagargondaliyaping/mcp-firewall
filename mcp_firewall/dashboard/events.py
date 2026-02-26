@@ -21,6 +21,7 @@ def build_dashboard_event(
     timestamp: float | None = None,
     findings: list[dict[str, Any]] | None = None,
     correlation_id: str | None = None,
+    server_id: str = "default",
     control_id: str = "",
     rule_name: str = "",
     target_hostname: str = "",
@@ -29,6 +30,7 @@ def build_dashboard_event(
     """Build a normalized dashboard event payload."""
     finding_models = [DashboardFinding.model_validate(item) for item in (findings or [])]
     event = DashboardEvent(
+        server_id=server_id,
         hostname=socket.gethostname(),
         target_hostname=target_hostname,
         correlation_id=correlation_id or str(uuid.uuid4()),

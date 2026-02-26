@@ -70,12 +70,45 @@ Replace your MCP server config:
 }
 ```
 
+### 6. Shared state for multiple MCP servers (recommended)
+
+Start one shared daemon (with both Unix socket and TCP listeners):
+
+```bash
+mcp-firewall daemon --dashboard --listen-unix /tmp/mcp-firewall.sock --listen-tcp 127.0.0.1:9091
+```
+
+Then configure each MCP server to use `connect` with a stable `--server-id`:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-firewall",
+      "args": ["connect", "--server-id", "filesystem", "--daemon-unix", "/tmp/mcp-firewall.sock", "--", "npx", "-y", "@modelcontextprotocol/server-filesystem", "/home"]
+    },
+    "falcon-mcp": {
+      "command": "mcp-firewall",
+      "args": ["connect", "--server-id", "falcon-mcp", "--daemon-unix", "/tmp/mcp-firewall.sock", "--", "uvx", "--env-file", "/path/.env", "falcon-mcp"]
+    }
+  }
+}
+```
+
+TCP connector variant:
+
+```bash
+mcp-firewall connect --server-id filesystem --daemon-unix '' --daemon-tcp 127.0.0.1:9091 -- npx -y @modelcontextprotocol/server-filesystem /home
+```
+
 ## Features at a Glance
 
 | Command | Description |
 |---|---|
 | `mcp-firewall wrap -- <server>` | Wrap and protect an MCP server |
 | `mcp-firewall wrap --dashboard -- <server>` | With real-time dashboard |
+| `mcp-firewall daemon` | Run shared firewall state for multiple MCP servers |
+| `mcp-firewall connect --server-id <id> -- <server>` | Attach one MCP server session to shared daemon |
 | `mcp-firewall init` | Generate starter config |
 | `mcp-firewall validate` | Check config syntax |
 | `mcp-firewall audit` | Verify audit log integrity |

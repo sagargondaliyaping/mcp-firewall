@@ -25,7 +25,8 @@ def main() -> None:
 @click.argument("server_args", nargs=-1, required=True)
 @click.option("--config", "config_path", type=click.Path(), help="Path to mcp-firewall.yaml")
 @click.option("--dashboard", is_flag=True, help="Enable real-time dashboard (Phase 3)")
-def wrap(server_args: tuple[str, ...], config_path: str | None, dashboard: bool) -> None:
+@click.option("--server-id", default="default", show_default=True, help="Server identifier for events.")
+def wrap(server_args: tuple[str, ...], config_path: str | None, dashboard: bool, server_id: str) -> None:
     """Wrap an MCP server with mcp-firewall protection.
 
     Usage: mcp-firewall wrap -- npx @modelcontextprotocol/server-filesystem /tmp
@@ -57,13 +58,60 @@ def wrap(server_args: tuple[str, ...], config_path: str | None, dashboard: bool)
 
     # Start proxy
     from .proxy.stdio import StdioProxy
-    proxy = StdioProxy(config, console)
+    proxy = StdioProxy(config, console, server_id=server_id)
 
     try:
         exit_code = asyncio.run(proxy.run(list(server_args)))
         sys.exit(exit_code)
     except KeyboardInterrupt:
         console.print("\n  [dim]Shutting down...[/dim]")
+
+
+@main.command("daemon")
+@click.option("--config", "config_path", type=click.Path(), help="Path to mcp-firewall.yaml")
+@click.option("--dashboard/--no-dashboard", default=True, show_default=True)
+@click.option("--listen-unix", type=click.Path(), default="/tmp/mcp-firewall.sock", show_default=True)
+@click.option("--listen-tcp", default="127.0.0.1:9091", show_default=True)
+def daemon_cmd(
+    config_path: str | None,
+    dashboard: bool,
+    listen_unix: str | None,
+    listen_tcp: str | None,
+) -> None:
+    """Run shared-state firewall daemon for multiple MCP connectors."""
+    console = Console(stderr=True)
+    config = load_config(config_path)
+
+    if dashboard:
+        from .dashboard.server import start_dashboard
+
+        start_dashboard()
+        console.print("  [green]Dashboard:[/green] http://127.0.0.1:9090")
+
+    from .proxy.shared_daemon import SharedFirewallDaemon
+
+    daemon = SharedFirewallDaemon(config, console)
+    asyncio.run(daemon.run(listen_unix=listen_unix, listen_tcp=listen_tcp))
+
+
+@main.command("connect")
+@click.argument("server_args", nargs=-1, required=True)
+@click.option("--server-id", required=True, help="Stable MCP server id (e.g. filesystem, falcon-mcp).")
+@click.option("--daemon-unix", type=click.Path(), default="/tmp/mcp-firewall.sock", show_default=True)
+@click.option("--daemon-tcp", default=None)
+def connect(server_args: tuple[str, ...], server_id: str, daemon_unix: str | None, daemon_tcp: str | None) -> None:
+    """Connect a wrapped MCP server session to shared daemon state."""
+    from .proxy.shared_daemon import run_connector
+
+    exit_code = asyncio.run(
+        run_connector(
+            server_id=server_id,
+            server_command=list(server_args),
+            daemon_unix=daemon_unix,
+            daemon_tcp=daemon_tcp,
+        )
+    )
+    sys.exit(exit_code)
 
 
 @main.command("wrap-http")

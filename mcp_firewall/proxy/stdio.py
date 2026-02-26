@@ -26,10 +26,16 @@ class StdioProxy:
     the outbound pipeline, and returns (possibly modified) responses to the client.
     """
 
-    def __init__(self, config: GatewayConfig, console: Console | None = None) -> None:
+    def __init__(
+        self,
+        config: GatewayConfig,
+        console: Console | None = None,
+        server_id: str = "default",
+    ) -> None:
         self.config = config
         self.pipeline = PipelineRunner(config)
         self.console = console or Console(stderr=True)
+        self.server_id = server_id
         self._server_proc: asyncio.subprocess.Process | None = None
 
     async def run(self, server_command: list[str]) -> int:
@@ -175,6 +181,7 @@ class StdioProxy:
                     findings=self.pipeline.decision_findings(decision),
                     correlation_id=request.id,
                     target_hostname=str((decision.details or {}).get("host", "")),
+                    server_id=self.server_id,
                 )
             )
             # Return error response directly to client
@@ -210,6 +217,7 @@ class StdioProxy:
                     timestamp=request.timestamp,
                     findings=self.pipeline.decision_findings(decision),
                     correlation_id=request.id,
+                    server_id=self.server_id,
                 )
             )
             # In Phase 1, prompt falls through to allow (interactive approval in Phase 2)
@@ -219,7 +227,7 @@ class StdioProxy:
             f"  [green]✓ ALLOW[/green]  {request.tool_name}"
         )
         dashboard_state.add_event(
-            build_dashboard_event(
+                build_dashboard_event(
                 action="allow",
                 tool=request.tool_name,
                 agent=request.agent_id,
@@ -229,6 +237,7 @@ class StdioProxy:
                 timestamp=request.timestamp,
                 findings=[],
                 correlation_id=request.id,
+                server_id=self.server_id,
             )
         )
         return raw
@@ -273,6 +282,7 @@ class StdioProxy:
                         timestamp=response.timestamp,
                         findings=self.pipeline.decision_findings(d),
                         correlation_id=dummy_request.id,
+                        server_id=self.server_id,
                     )
                 )
                 msg["result"]["content"] = [
@@ -293,6 +303,7 @@ class StdioProxy:
                         timestamp=response.timestamp,
                         findings=self.pipeline.decision_findings(d),
                         correlation_id=dummy_request.id,
+                        server_id=self.server_id,
                     )
                 )
                 msg["result"]["content"] = response.content

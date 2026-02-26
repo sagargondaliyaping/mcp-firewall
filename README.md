@@ -140,6 +140,27 @@ Works with every MCP client — zero code changes:
 }
 ```
 
+For multiple MCP servers with one shared dashboard/state, use daemon + connect:
+
+```bash
+mcp-firewall daemon --dashboard --listen-unix /tmp/mcp-firewall.sock --listen-tcp 127.0.0.1:9091
+```
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-firewall",
+      "args": ["connect", "--server-id", "filesystem", "--daemon-unix", "/tmp/mcp-firewall.sock", "--", "npx", "-y", "@modelcontextprotocol/server-filesystem", "/home"]
+    },
+    "falcon-mcp": {
+      "command": "mcp-firewall",
+      "args": ["connect", "--server-id", "falcon-mcp", "--daemon-unix", "/tmp/mcp-firewall.sock", "--", "uvx", "--env-file", "/path/.env", "falcon-mcp"]
+    }
+  }
+}
+```
+
 Compatible with: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, and any MCP client.
 
 ## Architecture
