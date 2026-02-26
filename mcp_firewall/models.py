@@ -106,6 +106,9 @@ class AuditEvent(BaseModel):
     reason: str = ""
     severity: Severity = Severity.INFO
     latency_ms: float = 0.0
+    correlation_id: str = ""
+    control_id: str = ""
+    rule_name: str = ""
     previous_hash: str = ""  # hash chain
 
 

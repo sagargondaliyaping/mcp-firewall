@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 
 from ..models import Action, AuditEvent, GatewayConfig, PipelineDecision, Severity, ToolCallRequest
+from .schema import extract_decision_metadata
 
 
 class AuditLogger:
@@ -56,6 +57,7 @@ class AuditLogger:
         if not self.enabled:
             return
 
+        metadata = extract_decision_metadata(decision)
         event = AuditEvent(
             agent_id=request.agent_id,
             tool_name=request.tool_name,
@@ -65,6 +67,9 @@ class AuditLogger:
             reason=decision.reason if decision else "",
             severity=decision.severity if decision else Severity.INFO,
             latency_ms=latency_ms,
+            correlation_id=request.id,
+            control_id=metadata["control_id"],
+            rule_name=metadata["rule_name"],
             previous_hash=self._previous_hash,
         )
 

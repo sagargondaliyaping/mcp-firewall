@@ -25,7 +25,9 @@ class AuditData:
         self.by_stage: Counter = Counter()
         self.by_tool: Counter = Counter()
         self.by_agent: Counter = Counter()
+        self.by_control: Counter = Counter()
         self.critical_events: list[dict[str, Any]] = []
+        self.with_control_metadata = 0
         self.first_timestamp: float | None = None
         self.last_timestamp: float | None = None
 
@@ -59,6 +61,10 @@ class AuditData:
                 self.by_stage[event.get("stage", "none")] += 1
                 self.by_tool[event.get("tool_name", "unknown")] += 1
                 self.by_agent[event.get("agent_id", "unknown")] += 1
+                control_id = event.get("control_id", "")
+                if control_id:
+                    self.by_control[control_id] += 1
+                    self.with_control_metadata += 1
 
                 if severity in ("critical", "high"):
                     self.critical_events.append(event)
@@ -140,6 +146,8 @@ All MCP tool calls are logged with:
 - Pipeline stage that triggered the decision
 - Severity classification
 - Processing latency
+- Correlation ID for end-to-end request tracing
+- Control metadata (`control_id`, `rule_name`) when available
 
 ### 2.3 Agent Activity Summary
 

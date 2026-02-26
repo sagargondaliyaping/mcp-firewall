@@ -10,7 +10,7 @@ import pytest
 from mcp_firewall.audit.signer import AuditSigner
 from mcp_firewall.audit.logger import AuditLogger
 from mcp_firewall.compliance.report import AuditData, generate_dora_report, generate_finma_report, generate_soc2_report
-from mcp_firewall.models import Action, GatewayConfig, ToolCallRequest
+from mcp_firewall.models import Action, GatewayConfig, PipelineDecision, PipelineStage, Severity, ToolCallRequest
 from mcp_firewall.threatfeed.loader import ThreatFeed, ThreatRule
 from mcp_firewall.models import Severity
 
@@ -227,3 +227,29 @@ class TestThreatRule:
         assert Severity.HIGH > Severity.MEDIUM
         assert Severity.LOW < Severity.HIGH
         assert Severity.INFO <= Severity.LOW
+
+
+def test_audit_entry_contains_policy_rule_and_correlation_id(tmp_path):
+    config = GatewayConfig()
+    config.audit.path = str(tmp_path / "audit.jsonl")
+    logger = AuditLogger(config)
+
+    request = make_request(tool="read_file", args={"path": "/tmp/example.txt"})
+    decision = PipelineDecision(
+        stage=PipelineStage.POLICY,
+        action=Action.DENY,
+        severity=Severity.HIGH,
+        reason="Blocked by policy rule",
+        details={"control_id": "MCP-POLICY-001", "rule_name": "block-example"},
+    )
+    logger.log(request, decision)
+
+    line = Path(config.audit.path).read_text().splitlines()[0]
+    entry = json.loads(line)
+
+    assert "correlation_id" in entry
+    assert "control_id" in entry
+    assert "rule_name" in entry
+    assert entry["correlation_id"] == request.id
+    assert entry["control_id"] == "MCP-POLICY-001"
+    assert entry["rule_name"] == "block-example"
