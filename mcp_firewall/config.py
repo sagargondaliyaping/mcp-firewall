@@ -46,6 +46,13 @@ def load_config(path: str | Path | None = None) -> GatewayConfig:
             mapped["injection"] = sec["injectionDetection"]
         if "egressControl" in sec:
             mapped["egress"] = sec["egressControl"]
+        if "auth" in sec:
+            auth = sec["auth"]
+            mapped["auth"] = {
+                "enabled": auth.get("enabled", True),
+                "allowed_audiences": auth.get("allowedAudiences", auth.get("allowed_audiences", ["mcp-firewall"])),
+                "required_issuer": auth.get("requiredIssuer", auth.get("required_issuer")),
+            }
         if "threatFeed" in sec:
             mapped["threat_feed"] = sec["threatFeed"]
 
@@ -53,12 +60,23 @@ def load_config(path: str | Path | None = None) -> GatewayConfig:
         mapped["injection"] = raw["injection"]
     if "egress" in raw:
         mapped["egress"] = raw["egress"]
+    if "auth" in raw:
+        auth = raw["auth"]
+        mapped["auth"] = {
+            "enabled": auth.get("enabled", True),
+            "allowed_audiences": auth.get("allowedAudiences", auth.get("allowed_audiences", ["mcp-firewall"])),
+            "required_issuer": auth.get("requiredIssuer", auth.get("required_issuer")),
+        }
     if "threatFeed" in raw or "threat_feed" in raw:
         mapped["threat_feed"] = raw.get("threatFeed", raw.get("threat_feed", {}))
     if "secrets" in raw:
         mapped["secrets"] = raw["secrets"]
     if "pii" in raw:
         mapped["pii"] = raw["pii"]
+    if "exfil" in raw:
+        mapped["exfil"] = raw["exfil"]
+    if "content" in raw:
+        mapped["content"] = raw["content"]
     if "alerts" in raw:
         mapped["alerts"] = raw["alerts"]
 
@@ -68,6 +86,8 @@ def load_config(path: str | Path | None = None) -> GatewayConfig:
             mapped.setdefault("secrets", {})["enabled"] = rs["detectSecrets"]
         if "detectPII" in rs:
             mapped.setdefault("pii", {})["enabled"] = rs["detectPII"]
+        if "detectExfil" in rs:
+            mapped.setdefault("exfil", {})["enabled"] = rs["detectExfil"]
 
     mapped["agents"] = raw.get("agents", {})
     mapped["rules"] = raw.get("rules", [])
@@ -88,6 +108,9 @@ globalRateLimit:
   windowSeconds: 60
 
 security:
+  auth:
+    enabled: true
+    allowedAudiences: ["mcp-firewall"]
   injectionDetection:
     enabled: true
     sensitivity: medium  # low | medium | high
@@ -101,6 +124,7 @@ security:
 responseScanning:
   detectSecrets: true
   detectPII: false
+  detectExfil: true
 
 # Agent-specific policies (RBAC)
 # agents:

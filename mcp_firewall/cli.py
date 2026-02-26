@@ -66,6 +66,24 @@ def wrap(server_args: tuple[str, ...], config_path: str | None, dashboard: bool)
         console.print("\n  [dim]Shutting down...[/dim]")
 
 
+@main.command("wrap-http")
+@click.option("--config", "config_path", type=click.Path(), help="Path to mcp-firewall.yaml")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8081, show_default=True, type=int)
+def wrap_http(config_path: str | None, host: str, port: int) -> None:
+    """Run HTTP MCP firewall endpoint with auth validation."""
+    import uvicorn
+
+    console = Console(stderr=True)
+    config = load_config(config_path)
+
+    from .proxy.http import create_http_app
+
+    app = create_http_app(config)
+    console.print(f"[blue]mcp-firewall[/blue] HTTP proxy listening on http://{host}:{port}/mcp")
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
 @main.command()
 @click.option("--enterprise", is_flag=True, help="Generate enterprise policy template")
 @click.option("--output", type=click.Path(), default="mcp-firewall.yaml")

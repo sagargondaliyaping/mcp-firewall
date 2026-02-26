@@ -118,9 +118,12 @@ class GatewayConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     injection: InjectionConfig = Field(default_factory=lambda: InjectionConfig())
     egress: EgressConfig = Field(default_factory=lambda: EgressConfig())
+    auth: AuthConfig = Field(default_factory=lambda: AuthConfig())
     threat_feed: ThreatFeedConfig = Field(default_factory=lambda: ThreatFeedConfig())
     secrets: SecretScanConfig = Field(default_factory=lambda: SecretScanConfig())
     pii: PIIConfig = Field(default_factory=lambda: PIIConfig())
+    exfil: ExfilConfig = Field(default_factory=lambda: ExfilConfig())
+    content: ContentPolicyConfig = Field(default_factory=lambda: ContentPolicyConfig())
     alerts: AlertsConfig = Field(default_factory=lambda: AlertsConfig())
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     rules: list[RuleConfig] = Field(default_factory=list)
@@ -157,6 +160,14 @@ class EgressConfig(BaseModel):
     block_cloud_metadata: bool = True
 
 
+class AuthConfig(BaseModel):
+    """HTTP transport authentication configuration."""
+
+    enabled: bool = True
+    allowed_audiences: list[str] = Field(default_factory=lambda: ["mcp-firewall"])
+    required_issuer: str | None = None
+
+
 class ThreatFeedConfig(BaseModel):
     """Threat feed configuration."""
 
@@ -176,6 +187,21 @@ class PIIConfig(BaseModel):
 
     enabled: bool = False  # off by default
     action: Action = Action.REDACT
+
+
+class ExfilConfig(BaseModel):
+    """Outbound exfiltration detection configuration."""
+
+    enabled: bool = True
+    action: Action = Action.DENY
+
+
+class ContentPolicyConfig(BaseModel):
+    """Custom content policy configuration."""
+
+    enabled: bool = False
+    block_patterns: list[str] = Field(default_factory=list)
+    action: Action = Action.DENY
 
 
 class AlertsConfig(BaseModel):
