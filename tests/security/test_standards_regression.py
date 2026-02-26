@@ -16,3 +16,8 @@ def test_minimum_control_coverage_threshold() -> None:
 
     coverage = len(implemented) / len(required)
     assert coverage >= 0.80, f"coverage {coverage:.2%} is below 80%"
+
+
+def test_dashboard_rollout_checklist_exists() -> None:
+    checklist = Path("docs/plans/2026-02-26-dashboard-live-feed-rollout-checklist.md")
+    assert checklist.exists()

@@ -12,6 +12,7 @@ from rich.console import Console
 from ..models import Action, GatewayConfig, ToolCallRequest, ToolCallResponse
 from ..pipeline.runner import PipelineRunner
 from ..dashboard.app import state as dashboard_state
+from ..dashboard.events import build_dashboard_event
 
 
 class StdioProxy:
@@ -162,12 +163,20 @@ class StdioProxy:
             self.console.print(
                 f"  [red]✗ DENIED[/red] {request.tool_name}: {decision.reason}"
             )
-            dashboard_state.add_event({
-                "action": "deny", "tool": request.tool_name, "agent": request.agent_id,
-                "reason": decision.reason, "severity": decision.severity.value,
-                "stage": decision.stage.value if decision.stage else None,
-                "timestamp": request.timestamp,
-            })
+            dashboard_state.add_event(
+                build_dashboard_event(
+                    action="deny",
+                    tool=request.tool_name,
+                    agent=request.agent_id,
+                    reason=decision.reason,
+                    severity=decision.severity.value,
+                    stage=decision.stage.value if decision.stage else None,
+                    timestamp=request.timestamp,
+                    findings=self.pipeline.decision_findings(decision),
+                    correlation_id=request.id,
+                    target_hostname=str((decision.details or {}).get("host", "")),
+                )
+            )
             # Return error response directly to client
             error_response = {
                 "jsonrpc": "2.0",
@@ -190,17 +199,38 @@ class StdioProxy:
             self.console.print(
                 f"  [yellow]? PROMPT[/yellow] {request.tool_name}: {decision.reason}"
             )
+            dashboard_state.add_event(
+                build_dashboard_event(
+                    action="prompt",
+                    tool=request.tool_name,
+                    agent=request.agent_id,
+                    reason=decision.reason,
+                    severity=decision.severity.value,
+                    stage=decision.stage.value if decision.stage else None,
+                    timestamp=request.timestamp,
+                    findings=self.pipeline.decision_findings(decision),
+                    correlation_id=request.id,
+                )
+            )
             # In Phase 1, prompt falls through to allow (interactive approval in Phase 2)
             self.console.print(f"  [dim]  (auto-allowing, interactive approval coming in Phase 2)[/dim]")
 
         self.console.print(
             f"  [green]✓ ALLOW[/green]  {request.tool_name}"
         )
-        dashboard_state.add_event({
-            "action": "allow", "tool": request.tool_name, "agent": request.agent_id,
-            "reason": "", "severity": "info", "stage": None,
-            "timestamp": request.timestamp,
-        })
+        dashboard_state.add_event(
+            build_dashboard_event(
+                action="allow",
+                tool=request.tool_name,
+                agent=request.agent_id,
+                reason="",
+                severity="info",
+                stage=None,
+                timestamp=request.timestamp,
+                findings=[],
+                correlation_id=request.id,
+            )
+        )
         return raw
 
     async def _intercept_response(self, raw: bytes) -> bytes:
@@ -232,6 +262,19 @@ class StdioProxy:
         for d in decisions:
             if d.action == Action.DENY:
                 self.console.print(f"  [red]✗ BLOCKED RESPONSE[/red]: {d.reason}")
+                dashboard_state.add_event(
+                    build_dashboard_event(
+                        action="deny",
+                        tool=dummy_request.tool_name,
+                        agent=dummy_request.agent_id,
+                        reason=d.reason,
+                        severity=d.severity.value,
+                        stage=d.stage.value if d.stage else None,
+                        timestamp=response.timestamp,
+                        findings=self.pipeline.decision_findings(d),
+                        correlation_id=dummy_request.id,
+                    )
+                )
                 msg["result"]["content"] = [
                     {"type": "text", "text": f"[mcp-firewall] Response blocked: {d.reason}"}
                 ]
@@ -239,6 +282,19 @@ class StdioProxy:
                 return json.dumps(msg).encode()
             elif d.action == Action.REDACT:
                 self.console.print(f"  [yellow]~ REDACTED[/yellow]: {d.reason}")
+                dashboard_state.add_event(
+                    build_dashboard_event(
+                        action="redact",
+                        tool=dummy_request.tool_name,
+                        agent=dummy_request.agent_id,
+                        reason=d.reason,
+                        severity=d.severity.value,
+                        stage=d.stage.value if d.stage else None,
+                        timestamp=response.timestamp,
+                        findings=self.pipeline.decision_findings(d),
+                        correlation_id=dummy_request.id,
+                    )
+                )
                 msg["result"]["content"] = response.content
                 return json.dumps(msg).encode()
 

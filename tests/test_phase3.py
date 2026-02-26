@@ -143,10 +143,67 @@ class TestDashboardAPI:
         client = TestClient(app)
         resp = client.get("/api/events?limit=10")
         assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+        payload = resp.json()
+        assert "events" in payload
+        assert "total_count" in payload
 
     def test_websocket(self):
         client = TestClient(app)
         with client.websocket_connect("/ws") as ws:
             # Should connect without error
             pass  # Auto-closes
+
+    def test_events_endpoint_supports_filters(self, monkeypatch):
+        from mcp_firewall.dashboard import app as dashboard_app_module
+
+        test_state = DashboardState()
+        test_state.add_event(
+            {
+                "action": "deny",
+                "severity": "high",
+                "agent": "claude",
+                "tool": "fetch",
+                "stage": "egress",
+                "timestamp": 1730000000,
+            }
+        )
+        test_state.add_event(
+            {
+                "action": "allow",
+                "severity": "info",
+                "agent": "codex",
+                "tool": "read_file",
+                "stage": "policy",
+                "timestamp": 1730000100,
+            }
+        )
+        monkeypatch.setattr(dashboard_app_module, "state", test_state)
+
+        client = TestClient(dashboard_app_module.app)
+        resp = client.get("/api/events?limit=50&action=deny&severity=high&agent=claude&tool=fetch")
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["total_count"] == 1
+        assert len(payload["events"]) == 1
+        assert payload["events"][0]["tool"] == "fetch"
+
+
+def test_dashboard_event_schema_includes_hostname_and_findings():
+    from mcp_firewall.dashboard.events import build_dashboard_event
+
+    evt = build_dashboard_event(
+        action="deny",
+        tool="fetch",
+        severity="high",
+        reason="Cloud metadata endpoint blocked",
+        findings=[{"type": "egress", "matched": "169.254.169.254"}],
+    )
+    assert "hostname" in evt
+    assert "findings" in evt
+
+
+def test_dashboard_html_contains_finding_and_hostname_columns():
+    from mcp_firewall.dashboard.app import DASHBOARD_HTML
+
+    assert "Hostname" in DASHBOARD_HTML
+    assert "Findings" in DASHBOARD_HTML

@@ -85,6 +85,23 @@ Replace your MCP server config:
 | `mcp-firewall report soc2` | SOC 2 evidence report |
 | `mcp-firewall feed list` | List threat feed rules |
 
+## Local Package Build and Install Check
+
+Use this when validating release artifacts locally:
+
+```bash
+bash scripts/package_local.sh
+bash scripts/test_local_install.sh
+```
+
+## Real MCP Wrap Validation
+
+Validate the local wheel against a real MCP server wrapper flow:
+
+```bash
+bash tests/e2e/test_real_mcp_wrap.sh
+```
+
 ## Next Steps
 
 - [Policy Reference](policies.md) — Full policy configuration guide

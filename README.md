@@ -232,6 +232,15 @@ mcp-firewall wrap -- python my_server.py
 - [Threat Feed](docs/threat-feed.md)
 - [Architecture](ARCHITECTURE.md)
 
+## Local Packaging Validation
+
+```bash
+bash scripts/package_local.sh
+bash scripts/test_local_install.sh
+```
+
+This builds wheel/sdist into `dist/`, installs the latest wheel in a clean local venv, and runs `mcp-firewall --version`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

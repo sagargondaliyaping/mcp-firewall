@@ -123,3 +123,32 @@ class PipelineRunner:
         """Hot-reload configuration."""
         self.config = config
         self.alerts = AlertEngine(min_severity=config.alerts.min_severity) if config.alerts.enabled else None
+
+    def decision_findings(self, decision: PipelineDecision) -> list[dict[str, str]]:
+        """Normalize decision details into structured findings."""
+        findings: list[dict[str, str]] = []
+        details = decision.details or {}
+
+        for item in details.get("findings", []):
+            name = str(item.get("name", "finding"))
+            matched = name
+            if item.get("severity"):
+                matched = f"{name} ({item['severity']})"
+            findings.append({"type": "policy", "matched": matched})
+
+        for pii_type in details.get("pii_types", []):
+            findings.append({"type": "pii", "matched": str(pii_type)})
+
+        if details.get("host"):
+            findings.append({"type": "egress", "matched": str(details["host"])})
+        if details.get("ip"):
+            findings.append({"type": "egress", "matched": str(details["ip"])})
+        if details.get("scheme"):
+            findings.append({"type": "egress", "matched": str(details["scheme"])})
+        if details.get("url"):
+            findings.append({"type": "egress", "matched": str(details["url"])})
+
+        if not findings and decision.reason:
+            findings.append({"type": "reason", "matched": decision.reason})
+
+        return findings

@@ -112,6 +112,35 @@ class AuditEvent(BaseModel):
     previous_hash: str = ""  # hash chain
 
 
+class DashboardFinding(BaseModel):
+    """Structured finding attached to a dashboard event."""
+
+    type: str
+    matched: str = ""
+    confidence: float = 1.0
+    action: str = ""
+
+
+class DashboardEvent(BaseModel):
+    """Normalized dashboard event payload."""
+
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    hostname: str
+    target_hostname: str = ""
+    correlation_id: str
+    control_id: str = ""
+    rule_name: str = ""
+    action: str
+    tool: str
+    severity: str = "info"
+    reason: str = ""
+    agent: str = "unknown"
+    stage: str | None = None
+    findings: list[DashboardFinding] = Field(default_factory=list)
+    latency_ms: float = 0.0
+    timestamp: float = Field(default_factory=time.time)
+
+
 class GatewayConfig(BaseModel):
     """Top-level gateway configuration."""
 

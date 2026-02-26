@@ -47,3 +47,23 @@ def test_content_policy_blocks_forbidden_pattern() -> None:
         d.stage == PipelineStage.CONTENT_POLICY and d.action == Action.DENY
         for d in decisions
     )
+
+
+def test_pipeline_decision_findings_include_secret_match() -> None:
+    config = GatewayConfig(default_action=Action.ALLOW)
+    config.audit.enabled = False
+    config.secrets.enabled = True
+    config.secrets.action = Action.REDACT
+
+    runner = PipelineRunner(config)
+    request = ToolCallRequest(tool_name="read_file")
+    response = ToolCallResponse(
+        request_id="3",
+        content=[{"type": "text", "text": "token=AKIA1234567890ABCDEF"}],
+    )
+
+    _, decisions = runner.scan_outbound(request, response)
+    assert decisions
+    findings = runner.decision_findings(decisions[0])
+    assert findings
+    assert findings[0]["matched"]

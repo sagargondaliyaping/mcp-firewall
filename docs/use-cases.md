@@ -198,6 +198,16 @@ for additional runtime protection.
 | **Red Teamer** | mcpwn | Schwachstellen finden |
 | **Regulated Industries** (Banking, Insurance) | mcp-firewall | Pflicht durch DORA Art. 9+11, FINMA |
 
+## Local Real-Server Validation
+
+Before production rollout, validate the local package against a real wrapped MCP server:
+
+```bash
+bash scripts/package_local.sh
+bash scripts/test_local_install.sh
+bash tests/e2e/test_real_mcp_wrap.sh
+```
+
 ## Konkrete Produkte die MCP nutzen
 
 | Produkt | Typ | MCP Support |

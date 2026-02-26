@@ -103,8 +103,38 @@ async def api_stats():
 
 
 @app.get("/api/events")
-async def api_events(limit: int = 50):
-    return state.events[-limit:]
+async def api_events(
+    limit: int = 50,
+    action: str | None = None,
+    severity: str | None = None,
+    agent: str | None = None,
+    tool: str | None = None,
+    stage: str | None = None,
+    time_from: float | None = None,
+    time_to: float | None = None,
+):
+    filtered = state.events
+    if action is not None:
+        filtered = [e for e in filtered if e.get("action") == action]
+    if severity is not None:
+        filtered = [e for e in filtered if e.get("severity") == severity]
+    if agent is not None:
+        filtered = [e for e in filtered if e.get("agent") == agent]
+    if tool is not None:
+        filtered = [e for e in filtered if e.get("tool") == tool]
+    if stage is not None:
+        filtered = [e for e in filtered if e.get("stage") == stage]
+    if time_from is not None:
+        filtered = [e for e in filtered if float(e.get("timestamp", 0)) >= time_from]
+    if time_to is not None:
+        filtered = [e for e in filtered if float(e.get("timestamp", 0)) <= time_to]
+
+    events = filtered[-limit:]
+    return {
+        "events": events,
+        "total_count": len(filtered),
+        "limit": limit,
+    }
 
 
 @app.websocket("/ws")
@@ -159,6 +189,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .event .sev { min-width: 20px; text-align: center; }
   .event .tool { color: var(--blue); min-width: 120px; font-family: monospace; }
   .event .agent { color: var(--dim); min-width: 100px; }
+  .event .hostname { color: var(--dim); min-width: 140px; font-family: monospace; }
+  .event .findings { color: var(--yellow); min-width: 180px; }
   .event .reason { flex: 1; }
   .event .action-allow { color: var(--green); }
   .event .action-deny { color: var(--red); }
@@ -185,6 +217,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
 <div class="feed">
   <h2>Live Event Feed</h2>
+  <div style="padding: 0 12px 6px; color: var(--dim); font-size: 12px;">Hostname | Findings</div>
   <div class="event-list" id="events"></div>
 </div>
 
@@ -209,12 +242,15 @@ function addEvent(evt) {
   const div = document.createElement('div');
   div.className = 'event';
   const actionClass = 'action-' + (evt.action || 'allow');
+  const findings = (evt.findings || []).map(f => f.matched || f.type || '').filter(Boolean).join(', ');
   div.innerHTML = `
     <span class="time">${formatTime(evt.timestamp || Date.now()/1000)}</span>
     <span class="sev">${sevEmoji[evt.severity] || '⚪'}</span>
     <span class="tool">${evt.tool || 'n/a'}</span>
     <span class="agent">${evt.agent || 'unknown'}</span>
+    <span class="hostname">${evt.hostname || 'n/a'}</span>
     <span class="${actionClass}">${(evt.action || 'allow').toUpperCase()}</span>
+    <span class="findings">${findings || 'none'}</span>
     <span class="reason">${evt.reason || ''}</span>
   `;
   el.insertBefore(div, el.firstChild);
@@ -243,7 +279,7 @@ fetch('/api/stats').then(r => r.json()).then(data => {
 
 // Load recent events
 fetch('/api/events?limit=50').then(r => r.json()).then(events => {
-  events.forEach(addEvent);
+  (events.events || []).forEach(addEvent);
 });
 
 // Update uptime
