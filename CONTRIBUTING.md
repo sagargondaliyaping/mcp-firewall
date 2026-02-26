@@ -20,6 +20,17 @@ pytest
 - **Tests:** Required for all new features (`pytest`)
 - **Commits:** Conventional commits preferred (`feat:`, `fix:`, `docs:`)
 
+## Release Integrity
+
+Before cutting releases, generate and verify supply-chain artifacts:
+
+```bash
+bash scripts/generate_sbom.sh mcp-firewall:dev
+bash scripts/verify_attestation.sh mcp-firewall:dev
+```
+
+The CI workflow `.github/workflows/release-security.yml` enforces SBOM presence.
+
 ## Threat Feed Rules
 
 Community rules are welcome! To contribute a detection rule:
