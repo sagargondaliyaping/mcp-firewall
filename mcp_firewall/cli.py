@@ -46,6 +46,7 @@ def wrap(server_args: tuple[str, ...], config_path: str | None, dashboard: bool)
     console.print(f"  [dim]Rules:[/dim] {len(config.rules)}")
     console.print(f"  [dim]Agents:[/dim] {len(config.agents)}")
     console.print(f"  [dim]Audit:[/dim] {config.audit.path if config.audit.enabled else 'disabled'}")
+    console.print(f"  [dim]Alerts:[/dim] {'enabled' if config.alerts.enabled else 'disabled'}")
     console.print()
 
     if dashboard:

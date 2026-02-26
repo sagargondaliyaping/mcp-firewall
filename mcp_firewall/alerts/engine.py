@@ -75,7 +75,7 @@ class AlertEngine:
 
     def process(self, request: ToolCallRequest, decision: PipelineDecision) -> None:
         """Process a pipeline decision and fire alerts if needed."""
-        if decision.action not in (Action.DENY, Action.ALERT):
+        if decision.action not in (Action.DENY, Action.ALERT, Action.REDACT):
             return
 
         if decision.severity < self.min_severity:
