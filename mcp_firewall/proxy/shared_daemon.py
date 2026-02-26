@@ -39,7 +39,7 @@ def parse_host_port(value: str) -> tuple[str, int]:
 class _SessionContext:
     server_id: str
     server_command: list[str]
-    request_tools: dict[str, str]
+    requests: dict[str, ToolCallRequest]
 
 
 class _SharedProxySession:
@@ -149,7 +149,7 @@ class _SharedProxySession:
             arguments=params.get("arguments", {}),
             agent_id=self.context.server_id,
         )
-        self.context.request_tools[request_id] = request.tool_name
+        self.context.requests[request_id] = request
 
         decision = self.pipeline.evaluate_inbound(request)
         if decision and decision.action == Action.DENY:
@@ -196,18 +196,6 @@ class _SharedProxySession:
                 )
             )
 
-        dashboard_state.add_event(
-            build_dashboard_event(
-                action="allow",
-                tool=request.tool_name,
-                agent=request.agent_id,
-                reason="",
-                severity="info",
-                timestamp=request.timestamp,
-                correlation_id=request.id,
-                server_id=self.context.server_id,
-            )
-        )
         return raw
 
     async def _intercept_response(self, raw: bytes) -> bytes:
@@ -221,13 +209,38 @@ class _SharedProxySession:
             return raw
 
         request_id = str(msg.get("id", ""))
-        tool_name = self.context.request_tools.get(request_id, "(response scan)")
+        original_request = self.context.requests.pop(request_id, None)
         response = ToolCallResponse(
             request_id=request_id,
             content=result.get("content", []),
             is_error=result.get("isError", False),
         )
-        dummy_request = ToolCallRequest(id=request_id, tool_name=tool_name, agent_id=self.context.server_id)
+        dummy_request = original_request or ToolCallRequest(
+            id=request_id,
+            tool_name="(response scan)",
+            agent_id=self.context.server_id,
+        )
+
+        if response.is_error:
+            reason = "Backend server returned error"
+            if response.content:
+                first_text = str(response.content[0].get("text", "")).strip()
+                if first_text:
+                    reason = first_text
+            dashboard_state.add_event(
+                build_dashboard_event(
+                    action="deny",
+                    tool=dummy_request.tool_name,
+                    agent=dummy_request.agent_id,
+                    reason=reason,
+                    severity="medium",
+                    stage=None,
+                    timestamp=response.timestamp,
+                    correlation_id=dummy_request.id,
+                    server_id=self.context.server_id,
+                )
+            )
+            return raw
         response, decisions = self.pipeline.scan_outbound(dummy_request, response)
 
         for decision in decisions:
@@ -255,6 +268,18 @@ class _SharedProxySession:
                 msg["result"]["content"] = response.content
                 return json.dumps(msg).encode()
 
+        dashboard_state.add_event(
+            build_dashboard_event(
+                action="allow",
+                tool=dummy_request.tool_name,
+                agent=dummy_request.agent_id,
+                reason="",
+                severity="info",
+                timestamp=response.timestamp,
+                correlation_id=dummy_request.id,
+                server_id=self.context.server_id,
+            )
+        )
         return raw
 
 
@@ -264,7 +289,7 @@ class SharedFirewallDaemon:
     def __init__(self, config: GatewayConfig, console: Console | None = None) -> None:
         self.config = config
         self.console = console or Console(stderr=True)
-        self.pipeline = PipelineRunner(config)
+        self.pipeline = PipelineRunner(config, auto_approve=True)
         self._servers: list[asyncio.AbstractServer] = []
 
     async def run(self, listen_unix: str | None, listen_tcp: str | None) -> None:
@@ -330,7 +355,7 @@ class SharedFirewallDaemon:
             writer=writer,
             pipeline=self.pipeline,
             console=self.console,
-            context=_SessionContext(server_id=server_id, server_command=server_command, request_tools={}),
+            context=_SessionContext(server_id=server_id, server_command=server_command, requests={}),
         )
         await session.run()
 

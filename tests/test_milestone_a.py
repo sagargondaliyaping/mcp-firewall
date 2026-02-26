@@ -137,3 +137,55 @@ def test_deny_event_contains_server_id(monkeypatch) -> None:
     assert forwarded is None
     assert len(test_state.events) == 1
     assert test_state.events[0]["server_id"] == "filesystem"
+
+
+def test_backend_error_response_emits_deny_not_allow(monkeypatch) -> None:
+    import asyncio
+    import io
+    import json
+    from types import SimpleNamespace
+
+    from rich.console import Console
+
+    from mcp_firewall.dashboard.app import DashboardState
+    from mcp_firewall.models import Action, GatewayConfig
+    from mcp_firewall.proxy import stdio as stdio_module
+
+    config = GatewayConfig(default_action=Action.ALLOW)
+    config.audit.enabled = False
+    proxy = stdio_module.StdioProxy(config, console=Console(file=io.StringIO()), server_id="filesystem")
+    proxy._server_proc = SimpleNamespace(
+        stdin=SimpleNamespace(write=lambda *_: None, drain=lambda: None),
+        stdout=SimpleNamespace(read=lambda *_: b""),
+        stderr=SimpleNamespace(readline=lambda: b""),
+    )
+
+    test_state = DashboardState()
+    monkeypatch.setattr(stdio_module, "dashboard_state", test_state)
+    monkeypatch.setattr(stdio_module.sys, "stdout", SimpleNamespace(buffer=io.BytesIO()))
+
+    req = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "backend-err-1",
+            "method": "tools/call",
+            "params": {"name": "read_file", "arguments": {"path": "/Users/sagargondaliya/Desktop/AI/crwd/.aws"}},
+        }
+    ).encode()
+    asyncio.run(proxy._intercept_request(req))
+
+    resp = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "backend-err-1",
+            "result": {
+                "content": [{"type": "text", "text": "access denied by backend"}],
+                "isError": True,
+            },
+        }
+    ).encode()
+    asyncio.run(proxy._intercept_response(resp))
+
+    actions = [e["action"] for e in test_state.events]
+    assert "deny" in actions
+    assert "allow" not in actions

@@ -36,6 +36,7 @@ class StdioProxy:
         self.pipeline = PipelineRunner(config)
         self.console = console or Console(stderr=True)
         self.server_id = server_id
+        self._pending_requests: dict[str, ToolCallRequest] = {}
         self._server_proc: asyncio.subprocess.Process | None = None
 
     async def run(self, server_command: list[str]) -> int:
@@ -223,23 +224,7 @@ class StdioProxy:
             # In Phase 1, prompt falls through to allow (interactive approval in Phase 2)
             self.console.print(f"  [dim]  (auto-allowing, interactive approval coming in Phase 2)[/dim]")
 
-        self.console.print(
-            f"  [green]✓ ALLOW[/green]  {request.tool_name}"
-        )
-        dashboard_state.add_event(
-                build_dashboard_event(
-                action="allow",
-                tool=request.tool_name,
-                agent=request.agent_id,
-                reason="",
-                severity="info",
-                stage=None,
-                timestamp=request.timestamp,
-                findings=[],
-                correlation_id=request.id,
-                server_id=self.server_id,
-            )
-        )
+        self._pending_requests[request.id] = request
         return raw
 
     async def _intercept_response(self, raw: bytes) -> bytes:
@@ -260,11 +245,32 @@ class StdioProxy:
             is_error=result.get("isError", False),
         )
 
-        # Create a dummy request for pipeline (we don't have the original here)
-        dummy_request = ToolCallRequest(
+        original_request = self._pending_requests.pop(response.request_id, None)
+        dummy_request = original_request or ToolCallRequest(
             id=response.request_id,
             tool_name="(response scan)",
         )
+
+        if response.is_error:
+            reason = "Backend server returned error"
+            if response.content:
+                first_text = str(response.content[0].get("text", "")).strip()
+                if first_text:
+                    reason = first_text
+            dashboard_state.add_event(
+                build_dashboard_event(
+                    action="deny",
+                    tool=dummy_request.tool_name,
+                    agent=dummy_request.agent_id,
+                    reason=reason,
+                    severity="medium",
+                    stage=None,
+                    timestamp=response.timestamp,
+                    correlation_id=dummy_request.id,
+                    server_id=self.server_id,
+                )
+            )
+            return raw
 
         response, decisions = self.pipeline.scan_outbound(dummy_request, response)
 
@@ -309,4 +315,18 @@ class StdioProxy:
                 msg["result"]["content"] = response.content
                 return json.dumps(msg).encode()
 
+        dashboard_state.add_event(
+            build_dashboard_event(
+                action="allow",
+                tool=dummy_request.tool_name,
+                agent=dummy_request.agent_id,
+                reason="",
+                severity="info",
+                stage=None,
+                timestamp=response.timestamp,
+                findings=[],
+                correlation_id=dummy_request.id,
+                server_id=self.server_id,
+            )
+        )
         return raw

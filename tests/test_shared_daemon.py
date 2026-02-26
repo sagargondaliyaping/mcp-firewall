@@ -22,3 +22,11 @@ def test_connect_handshake_contains_server_identity() -> None:
     assert payload["type"] == "connect"
     assert payload["server_id"] == "filesystem"
     assert payload["server_command"][0] == "npx"
+
+
+def test_shared_daemon_uses_noninteractive_human_approval() -> None:
+    from mcp_firewall.models import GatewayConfig
+    from mcp_firewall.proxy.shared_daemon import SharedFirewallDaemon
+
+    daemon = SharedFirewallDaemon(GatewayConfig())
+    assert daemon.pipeline._approval._auto_approve is True
