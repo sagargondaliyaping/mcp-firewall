@@ -1,0 +1,8 @@
+control_id,standard,requirement,component,status,notes
+MCP-AUTH-001,MCP Authorization + RFC9700,Validate token audience issuer expiry,mcp_firewall/proxy/http.py,planned,Required for HTTP transport support
+MCP-INGRESS-001,OWASP GenAI,Detect and block prompt injection,mcp_firewall/pipeline/inbound/injection.py,implemented,Sensitivity configurable
+MCP-EGRESS-001,OWASP GenAI,Prevent SSRF and metadata access,mcp_firewall/pipeline/inbound/egress.py,implemented,Blocks private and link-local targets
+MCP-POLICY-001,NIST AI RMF,Policy evaluation before execution,mcp_firewall/pipeline/inbound/policy.py,implemented,YAML first-match semantics
+MCP-THREAT-001,NIST CSF 2.0,Runtime threat feed enforcement,mcp_firewall/pipeline/inbound/threat_feed.py,planned,Will enforce bundled rules
+MCP-ALERT-001,NIST CSF 2.0,Alert on high severity violations,mcp_firewall/alerts/engine.py,planned,Needs pipeline integration
+MCP-AUDIT-001,NIST SSDF,Tamper-evident audit evidence,mcp_firewall/audit/logger.py,implemented,Hash chain with optional signatures

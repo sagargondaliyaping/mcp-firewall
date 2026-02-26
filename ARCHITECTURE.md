@@ -350,6 +350,14 @@ mcp-firewall feed add ./my-rule.yaml # Add custom rule
 mcp-firewall scan -- python server.py    # Pre-deployment security scan
 ```
 
+## Standards Mapping
+
+`mcp-firewall` now maintains security standards alignment artifacts for implementation
+tracking and audit evidence:
+
+- `docs/security/control-catalog.md` (human-readable control catalog)
+- `docs/security/standards-mapping.csv` (machine-readable standards mapping)
+
 ## Implementation Phases
 
 ### Phase 1: Core Proxy + Basic Pipeline (Week 1)
